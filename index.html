@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三麻スコア計算</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--ink:#14161f;--sub:#6b7186;--line:#e4e6ee;--accent:#4f5bd5;--accent-ink:#fff;--plus:#2563eb;--minus:#e11d48;--field:#f6f7fb;--shadow:0 1px 2px rgba(20,22,31,.04),0 4px 16px rgba(20,22,31,.05)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+main{max-width:760px;margin:0 auto;padding:20px 14px 56px}
+h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:6px 0 16px}
+h2{font-size:14px;font-weight:700;margin:0 0 12px}
+section{background:var(--card);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.group{margin-bottom:14px}
+.group:last-of-type{margin-bottom:0}
+.group>span{display:block;font-size:12px;font-weight:600;color:var(--sub);margin-bottom:6px}
+.row{display:grid;gap:10px}
+.r3{grid-template-columns:repeat(3,1fr)}
+.r2{grid-template-columns:repeat(2,1fr)}
+label{display:block;font-size:12px;color:var(--sub);margin-bottom:3px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid transparent;border-radius:10px;padding:9px 10px;text-align:right;transition:border-color .15s,background .15s}
+input:hover,select:hover{border-color:var(--line)}
+input:focus,select:focus{outline:none;border-color:var(--accent);background:var(--card)}
+input:disabled{opacity:.45}
+select{text-align:left}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input.name{text-align:center;font-weight:600}
+.note{font-size:12px;margin-top:12px;color:var(--sub)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px 4px;vertical-align:top}
+th{font-size:12px;font-weight:600;color:var(--sub)}
+td.no{width:28px;color:var(--sub);font-size:12px;padding-top:12px}
+.pt{font-size:12px;text-align:right;min-height:18px;padding-top:3px;color:var(--sub)}
+.pt b{font-size:13px}
+.plus{color:var(--plus)}.minus{color:var(--minus)}
+.auto{color:var(--sub)}
+.warn{color:var(--minus);font-size:12px;margin-top:6px}
+button{font:inherit;font-weight:600;font-size:14px;border:0;background:var(--field);color:var(--ink);border-radius:10px;padding:9px 16px;cursor:pointer;transition:filter .15s}
+button:hover{filter:brightness(.96)}
+button.main{background:var(--accent);color:var(--accent-ink)}
+button.del{background:none;color:var(--sub);padding:8px 6px;font-size:16px;font-weight:400}
+.bar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.sum td,.sum th{text-align:right;padding:10px 4px;border-top:1px solid var(--line)}
+.sum tr:first-child th{border-top:0}
+.sum th:first-child,.sum td:first-child{text-align:left}
+.sum .total{font-size:17px;font-weight:700}
+
+.wrap{overflow-x:auto}
+#okaNote{white-space:pre-line}
+details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;border-radius:8px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"";width:8px;height:8px;margin-left:auto;margin-right:4px;border-right:2px solid var(--sub);border-bottom:2px solid var(--sub);transform:rotate(45deg) translateY(-2px);transition:transform .15s;flex:none}
+details[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+details[open]>summary{margin-bottom:14px}
+.stitle{font-size:14px;font-weight:700}
+.digest{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+details[open] .digest{display:none}
+input.autoval{color:var(--sub)}
+</style>
+</head>
+<body>
+<main>
+<h1>三麻スコア計算</h1>
+
+<section>
+  <details id="settingsBox" open>
+  <summary><span class="stitle">ルール・レート</span><span class="digest" id="digest"></span></summary>
+  <div class="group">
+    <span>精算方式</span>
+    <div class="row r3">
+      <div><label for="settle">ウマオカ</label><select id="settle"><option value="game">半荘ごと</option><option value="total">総合精算</option></select></div>
+    </div>
+  </div>
+  <div class="group">
+    <span>点数</span>
+    <div class="row r3">
+      <div><label for="okaOn">オカ</label><select id="okaOn"><option value="1">あり</option><option value="0">なし</option></select></div>
+      <div><label for="start">配給原点（点）</label><input id="start" type="number" step="1000"></div>
+      <div><label for="back">返し点（点）</label><input id="back" type="number" step="1000"></div>
+    </div>
+  </div>
+  <div class="group">
+    <span>ウマ（千点）</span>
+    <div class="row r3">
+      <div><label for="u1">1位</label><input id="u1" type="number" step="1"></div>
+      <div><label for="u2">2位</label><input id="u2" type="number" step="1"></div>
+      <div><label for="u3">3位</label><input id="u3" type="number" step="1"></div>
+    </div>
+  </div>
+  <div class="group">
+    <span id="rateSpan">レート</span>
+    <div class="row r2">
+      <div><label for="rate">点数（千点あたり）</label><input id="rate" type="number" step="1"></div>
+      <div><label for="chip">チップ（1枚あたり）</label><input id="chip" type="number" step="1"></div>
+    </div>
+  </div>
+  <div class="note" id="okaNote"></div>
+  </details>
+</section>
+
+<section>
+  <h2>半荘の記録</h2>
+  <div class="wrap">
+  <table id="games"></table>
+  </div>
+  <div class="bar">
+    <button class="main" id="add">半荘を追加</button>
+    <button id="clear">全消去</button>
+  </div>
+  <div class="note" style="color:var(--sub)">最終持ち点を入力。1人分を空欄にすると残りから自動計算します。2人分を入力すると残りの1人分が自動で入ります（グレーの数値）。書き換えれば手入力になります。同点の場合は、該当する順位のウマ・オカを同点の人で山分けします（例：1位が2人同点なら、1位と2位の分を半分ずつ）。</div>
+</section>
+
+<section class="chips">
+  <h2>チップ（枚数・プラスマイナス）</h2>
+  <div class="row r3" id="chipInputs"></div>
+  <div class="warn" id="chipWarn"></div>
+</section>
+
+<section>
+  <h2>収支</h2>
+  <div class="wrap">
+  <table class="sum" id="sum"></table>
+  </div>
+  <div class="bar">
+    <button id="copyTxt">テキストをコピー</button>
+    <button id="saveCsv">CSVを保存</button>
+  </div>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const KEY='sanma-score-v1';
+const DEF={settingsOpen:true,settle:'game',okaOn:true,start:35000,back:40000,u:[10,0,-10],rate:50,chip:100,names:['A','B','C'],games:[['','','']],auto:[-1],chips:['','','']};
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+S=Object.assign({},DEF,S||{});
+if(!Array.isArray(S.auto)||S.auto.length!==S.games.length)S.auto=S.games.map(()=>-1);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const num=v=>v===''||v==null||isNaN(Number(v))?null:Number(v);
+const rd=x=>Math.round(x*100)/100;
+const sg=(x,d=0)=>(x>0?'+':x<0?'−':'')+Math.abs(x).toLocaleString('ja-JP',{minimumFractionDigits:d,maximumFractionDigits:d});
+const U=()=>'G';
+const cls=x=>x>0?'plus':x<0?'minus':'';
+
+function readSettings(){
+  S.settle=$('#settle').value;S.okaOn=$('#okaOn').value==='1';$('#back').disabled=!S.okaOn;
+  S.start=num($('#start').value)??0;S.back=num($('#back').value)??0;
+  S.u=[num($('#u1').value)??0,num($('#u2').value)??0,num($('#u3').value)??0];
+  S.rate=num($('#rate').value)??0;S.chip=num($('#chip').value)??0;
+}
+function writeSettings(){
+  $('#settle').value=S.settle;$('#okaOn').value=S.okaOn?'1':'0';$('#start').value=S.start;$('#back').value=S.back;
+  $('#u1').value=S.u[0];$('#u2').value=S.u[1];$('#u3').value=S.u[2];
+  $('#rate').value=S.rate;$('#chip').value=S.chip;
+}
+const back=()=>S.okaOn?S.back:S.start;
+const oka=()=>S.okaOn?rd((S.back-S.start)*3/1000):0;
+
+// 順位ごとのウマ+オカ。同点は該当する順位の分を平均して山分け
+function bonus(v){
+  const slots=[0,1,2].map(i=>S.u[i]+(i===0?oka():0));
+  const order=[0,1,2].sort((a,b)=>v[b]-v[a]||a-b);
+  const out=[0,0,0];
+  let i=0;
+  while(i<3){
+    let j=i;
+    while(j+1<3&&v[order[j+1]]===v[order[i]])j++;
+    const avg=slots.slice(i,j+1).reduce((a,b)=>a+b,0)/(j-i+1);
+    for(let k=i;k<=j;k++)out[order[k]]=avg;
+    i=j+1;
+  }
+  return out;
+}
+
+function calc(row){
+  const v=row.map(num);
+  const empty=v.filter(x=>x===null).length;
+  let auto=-1;
+  if(empty===1){auto=v.indexOf(null);v[auto]=S.start*3-v.reduce((a,b)=>a+(b||0),0)}
+  if(v.some(x=>x===null))return null;
+  const order=[0,1,2].sort((a,b)=>v[b]-v[a]||a-b);
+  const pts=[0,0,0];
+  if(S.settle==='total')[0,1,2].forEach(p=>{pts[p]=rd((v[p]-S.start)/1000)});
+  else{const b=bonus(v);[0,1,2].forEach(p=>{pts[p]=rd((v[p]-back())/1000+b[p])})}
+  const sum=v.reduce((a,b)=>a+b,0);
+  return{pts,auto,sum,v};
+}
+
+function fixAuto(gi,edited){
+  const g=S.games[gi],sum3=S.start*3;
+  const a=S.auto[gi];
+  if(a>=0){
+    const others=[0,1,2].filter(i=>i!==a);
+    if(others.every(i=>g[i]!==''))g[a]=String(sum3-others.reduce((t,i)=>t+Number(g[i]),0));
+    else{g[a]='';S.auto[gi]=-1}
+  }else if(edited!==undefined&&g[edited]!==''){
+    const empt=[0,1,2].filter(i=>g[i]==='');
+    if(empt.length===1){
+      const k=empt[0];S.auto[gi]=k;
+      g[k]=String(sum3-[0,1,2].filter(i=>i!==k).reduce((t,i)=>t+Number(g[i]),0));
+    }
+  }
+  [0,1,2].forEach(i=>{
+    const el=document.querySelector(`input[data-g="${gi}"][data-p="${i}"]`);
+    if(!el)return;
+    if(el.value!==g[i])el.value=g[i];
+    el.classList.toggle('autoval',S.auto[gi]===i);
+  });
+}
+
+function report(){
+  const games=S.games.map(calc);
+  const raw=[0,0,0];let done=0;
+  games.forEach(c=>{if(c){done++;c.pts.forEach((p,i)=>raw[i]+=p)}});
+  const adj=[0,0,0];
+  if(S.settle==='total'&&done){
+    const b=bonus(raw.map(rd));[0,1,2].forEach(p=>{adj[p]=-(back()-S.start)/1000+b[p]});
+  }
+  const chips=S.chips.map(x=>num(x)??0);
+  const rows=[0,1,2].map(i=>{
+    const rw=rd(raw[i]),ad=rd(adj[i]),pt=rd(rw+ad),py=Math.round(pt*S.rate),cy=chips[i]*S.chip;
+    return{n:S.names[i]||`P${i+1}`,raw:rw,adj:ad,pt,py,ch:chips[i],cy,all:py+cy};
+  });
+  return{games,rows};
+}
+const ymd=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')};
+function buildText(){
+  const {games,rows}=report();const n=rows.map(r=>r.n);
+  const L=[`三麻スコア ${new Date().toLocaleDateString('ja-JP')}`];
+  L.push(`ルール：配給${S.start.toLocaleString('ja-JP')}点 `+(S.okaOn?`返し${S.back.toLocaleString('ja-JP')}点 オカ${sg(oka(),1)}`:'オカなし')+` ウマ${S.u.map(x=>sg(x)).join('/')}　点数${S.rate}${U()}/千点 チップ${S.chip}${U()}/枚　精算：`+(S.settle==='total'?'総合精算':'半荘ごと')+'　同点：ウマオカ山分け');
+  L.push('');
+  games.forEach((c,gi)=>{if(c)L.push(`${gi+1}半荘目：`+[0,1,2].map(i=>`${n[i]} ${c.v[i].toLocaleString('ja-JP')}点(${sg(c.pts[i],1)})`).join('　'))});
+  L.push('');L.push('【収支】');
+  rows.forEach(r=>L.push(`${r.n}：`+(S.settle==='total'?`素点${sg(r.raw,1)} ウマオカ${sg(r.adj,1)} → `:'')+`${sg(r.pt,1)}pt ${sg(r.py)}${U()} ／ チップ${sg(r.ch)}枚 ${sg(r.cy)}${U()} ／ 合計 ${sg(r.all)}${U()}`));
+  return L.join('\n');
+}
+const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+function buildCsv(){
+  const {games,rows}=report();const n=rows.map(r=>r.n);
+  const o=[['半荘',...n.map(x=>x+' 持ち点'),...n.map(x=>x+(S.settle==='total'?' 素点':' pt'))]];
+  games.forEach((c,gi)=>{if(c)o.push([gi+1,...c.v,...c.pts])});
+  o.push([]);
+  const tm=S.settle==='total';
+  o.push(['名前',...(tm?['素点','ウマオカ']:[]),'合計pt','点数('+U()+')','チップ(枚)','チップ('+U()+')','合計('+U()+')']);
+  rows.forEach(r=>o.push([r.n,...(tm?[r.raw,r.adj]:[]),r.pt,r.py,r.ch,r.cy,r.all]));
+  o.push([]);
+  o.push(['設定','精算方式',tm?'総合精算':'半荘ごと','同点','ウマオカ山分け','配給原点',S.start,'返し点',back(),'オカ',oka(),'ウマ',S.u.join('/'),'点数レート('+U()+'/千点)',S.rate,'チップ('+U()+'/枚)',S.chip]);
+  return '\ufeff'+o.map(r=>r.map(q).join(',')).join('\r\n');
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}
+  catch(e){
+    const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand('copy')}catch(_){}
+    ta.remove();return ok;
+  }
+}
+
+function buildGames(){
+  const t=$('#games');
+  let h='<tr><th></th>'+S.names.map((n,i)=>`<th><input class="name" data-name="${i}" value="${n.replace(/"/g,'&quot;')}" aria-label="プレイヤー${i+1}の名前"></th>`).join('')+'<th></th></tr>';
+  S.games.forEach((g,gi)=>{
+    h+=`<tr><td class="no">${gi+1}</td>`+[0,1,2].map(i=>`<td><input type="number" step="100" inputmode="numeric" data-g="${gi}" data-p="${i}" value="${g[i]}" class="${S.auto[gi]===i?'autoval':''}" aria-label="${gi+1}半荘目 プレイヤー${i+1}"><div class="pt" id="pt-${gi}-${i}"></div></td>`).join('')+`<td><button class="del" data-del="${gi}" aria-label="${gi+1}半荘目を削除">×</button></td></tr>`;
+  });
+  t.innerHTML=h;
+  $('#chipInputs').innerHTML=[0,1,2].map(i=>`<div><label data-cl="${i}"></label><input type="number" step="1" inputmode="numeric" data-chip="${i}" value="${S.chips[i]}"></div>`).join('');
+}
+
+function update(){
+  readSettings();
+  $('#rateSpan').textContent=`レート（${U()}）`;
+  $('#digest').textContent=(S.settle==='total'?'総合精算':'半荘ごと')+'・'+(S.okaOn?`オカ${sg(oka(),1)}`:'オカなし')+`・ウマ${S.u.map(x=>sg(x)).join('/')}・${S.rate}${U()}/千点・チップ${S.chip}${U()}`;
+  $('#okaNote').textContent=(S.settle==='total'
+    ?`総合精算：各半荘は素点＝(持ち点−配給原点)÷1000で記録し、全体の素点合計の順位で最後に1回だけウマ`+(S.okaOn?`・オカ（${oka()}を1位に加算、全員が${rd(oka()/3)}ずつ負担）`:'')+`を加減します。`
+    :S.okaOn
+    ?`オカあり：${oka()}（(返し−配給)×3÷1000）を1位に加算。\n順位点＝(持ち点−返し点)÷1000＋ウマ＋オカ`
+    :`オカなし：返し点＝配給原点として計算します。\n順位点＝(持ち点−配給原点)÷1000＋ウマ`)+'\n同点の場合は、該当する順位のウマ・オカを同点者で山分けします。';
+  const tot=[0,0,0];
+  S.games.forEach((g,gi)=>{
+    const c=calc(g);
+    [0,1,2].forEach(i=>{
+      const el=$(`#pt-${gi}-${i}`);if(!el)return;
+      if(!c){el.innerHTML='';return}
+      const inp=document.querySelector(`input[data-g="${gi}"][data-p="${i}"]`);
+      const a=c.auto===i?`<span class="auto">${c.v[i].toLocaleString('ja-JP')}点 </span>`:'';
+      el.innerHTML=a+`<b class="${cls(c.pts[i])}">${sg(c.pts[i],1)}</b>`;
+      tot[i]+=c.pts[i];
+    });
+    const warnId='w'+gi;
+  });
+  // warnings
+  let w=[];
+  S.games.forEach((g,gi)=>{const c=calc(g);if(c&&c.sum!==S.start*3)w.push(`${gi+1}半荘目の合計が${c.sum.toLocaleString('ja-JP')}点（${(S.start*3).toLocaleString('ja-JP')}点になるはず）`)});
+  // chips
+  const chips=S.chips.map(x=>num(x)??0);
+  [0,1,2].forEach(i=>{const l=document.querySelector(`[data-cl="${i}"]`);if(l)l.textContent=S.names[i]+'（枚）'});
+  const cs=chips.reduce((a,b)=>a+b,0);
+  $('#chipWarn').textContent=cs!==0?`チップの合計が${sg(cs)}枚です（0になるはず）`:'';
+  // summary
+  const rows=report().rows,tm=S.settle==='total';
+  let h='<tr><th></th>'+(tm?'<th>素点</th><th>ウマオカ</th>':'')+'<th>合計pt</th><th>点数('+U()+')</th><th>チップ(枚)</th><th>チップ('+U()+')</th><th>合計('+U()+')</th></tr>';
+  rows.forEach(r=>{
+    h+=`<tr><td><b>${r.n.replace(/</g,'&lt;')}</b></td>`+(tm?`<td class="${cls(r.raw)}">${sg(r.raw,1)}</td><td class="${cls(r.adj)}">${sg(r.adj,1)}</td>`:'')+`<td class="${cls(r.pt)}">${sg(r.pt,1)}</td><td class="${cls(r.py)}">${sg(r.py)}</td><td class="${cls(r.ch)}">${sg(r.ch)}</td><td class="${cls(r.cy)}">${sg(r.cy)}</td><td class="total ${cls(r.all)}">${sg(r.all)}${U()}</td></tr>`;
+  });
+  $('#sum').innerHTML=h+(w.length?`<tr><td colspan="${tm?8:6}" class="warn" style="text-align:left">${w.join('<br>')}</td></tr>`:'');
+  save();
+}
+
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.g!==undefined){
+    const gi=+t.dataset.g,p=+t.dataset.p;
+    S.games[gi][p]=t.value;
+    if(S.auto[gi]===p)S.auto[gi]=-1;
+    readSettings();fixAuto(gi,p);
+  }
+  else if(t.dataset.name!==undefined)S.names[t.dataset.name]=t.value;
+  else if(t.dataset.chip!==undefined)S.chips[t.dataset.chip]=t.value;
+  else if(t.id){readSettings();S.games.forEach((_,gi)=>fixAuto(gi))}
+  update();
+});
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.dataset.del!==undefined){
+    S.games.splice(+t.dataset.del,1);S.auto.splice(+t.dataset.del,1);
+    if(!S.games.length){S.games.push(['','','']);S.auto=[-1]}
+    buildGames();update();
+  }
+});
+$('#add').onclick=()=>{S.games.push(['','','']);S.auto.push(-1);buildGames();update();
+  const ins=document.querySelectorAll('#games input[data-g="'+(S.games.length-1)+'"]');if(ins[0])ins[0].focus()};
+$('#clear').onclick=()=>{if(confirm('半荘とチップの記録をすべて消去します。よろしいですか？（設定とプレイヤー名は残ります）')){S.games=[['','','']];S.auto=[-1];S.chips=['','',''];buildGames();update()}};
+$('#copyTxt').onclick=async e=>{const b=e.currentTarget,old=b.textContent;const ok=await copyText(buildText());b.textContent=ok?'コピーしました':'コピーできませんでした';setTimeout(()=>b.textContent=old,1600)};
+$('#saveCsv').onclick=()=>{const a=document.createElement('a');const url=URL.createObjectURL(new Blob([buildCsv()],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='sanma-'+ymd()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+
+writeSettings();buildGames();update();
+$('#settingsBox').open=S.settingsOpen!==false;
+$('#settingsBox').addEventListener('toggle',()=>{S.settingsOpen=$('#settingsBox').open;save()});
+</script>
+</body>
+</html>

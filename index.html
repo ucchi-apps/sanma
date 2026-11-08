@@ -56,6 +56,15 @@ button.del{background:none;color:var(--sub);padding:8px 6px;font-size:16px;font-
 .head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .head h2{margin:0}
 button.help{flex:none;width:22px;height:22px;padding:0;border-radius:50%;font-size:12px;font-weight:700;background:var(--field);color:var(--sub)}
+button.tip{flex:none;height:22px;padding:0 10px;border-radius:11px;font-size:12px;font-weight:700;background:var(--field);color:var(--accent)}
+table.tips{width:100%;border-collapse:separate;border-spacing:0 6px;text-align:center}
+table.tips th{font-size:12px;font-weight:600;color:var(--sub);padding:0 4px}
+table.tips td{padding:8px 4px;background:var(--field);font-size:15px;font-weight:700;line-height:1.3}
+table.tips td:first-child{border-radius:10px 0 0 10px}
+table.tips td:last-child{border-radius:0 10px 10px 0}
+table.tips td small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
+table.tips td.han{background:none;font-size:13px;color:var(--accent);width:56px;padding:8px 0}
+.tipnote{margin-top:8px;font-size:12px;color:var(--sub);line-height:1.6}
 dialog{border:0;padding:0;border-radius:16px;width:min(92vw,460px);color:var(--ink);background:var(--card);box-shadow:0 12px 40px rgba(20,22,31,.25)}
 dialog::backdrop{background:rgba(20,22,31,.45)}
 .dlg-in{padding:18px 18px 20px}
@@ -121,7 +130,7 @@ input.autoval{color:var(--sub)}
 </section>
 
 <section>
-  <div class="head"><h2>半荘の記録</h2><button type="button" class="help" data-help="records" aria-label="半荘の記録のヘルプ">?</button></div>
+  <div class="head"><h2>半荘の記録</h2><button type="button" class="help" data-help="records" aria-label="半荘の記録のヘルプ">?</button><button type="button" class="tip" data-help="tips" aria-label="3人打ち点数表を開く">Tips</button></div>
   <div class="wrap">
   <table id="games"></table>
   </div>
@@ -402,7 +411,21 @@ function ruleText(){
     ?`オカあり：${oka()}（(返し−配給)×3÷1000）を1位に加算。\n順位点＝(持ち点−返し点)÷1000＋ウマ＋オカ`
     :`オカなし：返し点＝配給原点として計算します。\n順位点＝(持ち点−配給原点)÷1000＋ウマ`)+'\n同点の場合は、該当する順位のウマ・オカを同点者で山分けします。';
 }
+const TIPS=[
+  ['1翻','2,000','1,000オール','1,000','1,000オール'],
+  ['2翻','3,000','2,000オール','2,000','1,000オール'],
+  ['3翻','6,000','3,000オール','4,000','1,000 / 3,000'],
+  ['満貫','12,000','6,000オール','8,000','3,000 / 5,000'],
+  ['跳満','18,000','9,000オール','12,000','4,000 / 8,000'],
+  ['倍満','24,000','12,000オール','16,000','6,000 / 10,000'],
+  ['三倍満','36,000','18,000オール','24,000','8,000 / 16,000'],
+  ['役満','48,000','24,000オール','32,000','12,000 / 20,000']
+];
+const tipsHtml=()=>'<table class="tips"><thead><tr><th>親</th><th></th><th>子</th></tr></thead><tbody>'
+  +TIPS.map(r=>`<tr><td>${r[1]}<small>（${r[2]}）</small></td><td class="han">${r[0]}</td><td>${r[3]}<small>（${r[4]}）</small></td></tr>`).join('')
+  +'</tbody></table><div class="tipnote">（）内はツモのときの支払いです。子は「子 / 親」の順に支払います。</div>';
 const HELP={
+  tips:{t:'3人打ち点数表',html:true,b:tipsHtml},
   rules:{t:'ルール・レート',b:()=>ruleText()},
   records:{t:'半荘の記録',b:'最終持ち点を入力します。\n2人分を入力すると、残りの1人分が自動で入ります（グレーの数値）。書き換えれば手入力になります。\n同点の場合は、該当する順位のウマ・オカを同点の人で山分けします（例：1位が2人同点なら、1位と2位の分を半分ずつ）。'},
   extras:{t:'飲み代等',b:'各枠の総額を、3人で均等割りにします。\n飲み代のほか、二次会や駐車場代などにも使えます。\n「各自で支払う」を選んだ枠は、精算に含めません。'},
@@ -479,7 +502,8 @@ document.addEventListener('click',e=>{
     e.preventDefault();
     const h=HELP[hb.dataset.help],d=helpDlg();
     $('#helpTitle').textContent=h.t;
-    $('#helpBody').textContent=typeof h.b==='function'?h.b():h.b;
+    const bd=$('#helpBody'),txt=typeof h.b==='function'?h.b():h.b;
+    if(h.html){bd.innerHTML=txt;bd.style.whiteSpace='normal'}else{bd.textContent=txt;bd.style.whiteSpace=''}
     d.showModal?d.showModal():d.setAttribute('open','');
     return;
   }

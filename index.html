@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>三麻スコア計算</title>
+<title>三麻スコア計算＋精算ツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -50,13 +50,26 @@ button.del{background:none;color:var(--sub);padding:8px 6px;font-size:16px;font-
 .sum .total{font-size:17px;font-weight:700}
 
 .wrap{overflow-x:auto}
+[hidden]{display:none!important}
+.xfer{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-radius:10px;background:var(--field);margin-top:8px}
+.xfer span{font-weight:700;font-size:16px}
+.head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.head h2{margin:0}
+button.help{flex:none;width:22px;height:22px;padding:0;border-radius:50%;font-size:12px;font-weight:700;background:var(--field);color:var(--sub)}
+dialog{border:0;padding:0;border-radius:16px;width:min(92vw,460px);color:var(--ink);background:var(--card);box-shadow:0 12px 40px rgba(20,22,31,.25)}
+dialog::backdrop{background:rgba(20,22,31,.45)}
+.dlg-in{padding:18px 18px 20px}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.dlg-head h3{margin:0;font-size:16px}
+#helpBody{font-size:14px;line-height:1.8;white-space:pre-line}
+.xrow{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px}
+.xrow button.del{padding:9px 8px}
 .under{display:flex;align-items:center;gap:6px;margin-top:3px}
 .under .pt{flex:1;padding-top:0;min-height:0;line-height:26px}
 button.sign{flex:none;font-size:13px;padding:2px 0;min-width:40px;height:28px;border-radius:8px}
 .inp{display:flex;gap:6px}
 .inp input{min-width:0;padding-left:6px;padding-right:6px}
 .inp button.sign{height:auto;min-width:38px}
-#okaNote{white-space:pre-line}
 details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;border-radius:8px}
 details>summary::-webkit-details-marker{display:none}
 details>summary::after{content:"";width:8px;height:8px;margin-left:auto;margin-right:4px;border-right:2px solid var(--sub);border-bottom:2px solid var(--sub);transform:rotate(45deg) translateY(-2px);transition:transform .15s;flex:none}
@@ -70,11 +83,11 @@ input.autoval{color:var(--sub)}
 </head>
 <body>
 <main>
-<h1>三麻スコア計算</h1>
+<h1>三麻スコア計算＋精算ツール</h1>
 
 <section>
   <details id="settingsBox" open>
-  <summary><span class="stitle">ルール・レート</span><span class="digest" id="digest"></span></summary>
+  <summary><span class="stitle">ルール・レート</span><button type="button" class="help" data-help="rules" aria-label="ルール・レートのヘルプ">?</button><span class="digest" id="digest"></span></summary>
   <div class="group">
     <span>精算方式</span>
     <div class="row r3">
@@ -104,12 +117,11 @@ input.autoval{color:var(--sub)}
       <div><label for="chip">チップ（1枚あたり）</label><input id="chip" type="number" step="1"></div>
     </div>
   </div>
-  <div class="note" id="okaNote"></div>
   </details>
 </section>
 
 <section>
-  <h2>半荘の記録</h2>
+  <div class="head"><h2>半荘の記録</h2><button type="button" class="help" data-help="records" aria-label="半荘の記録のヘルプ">?</button></div>
   <div class="wrap">
   <table id="games"></table>
   </div>
@@ -117,7 +129,6 @@ input.autoval{color:var(--sub)}
     <button class="main" id="add">半荘を追加</button>
     <button id="clear">全消去</button>
   </div>
-  <div class="note" style="color:var(--sub)">最終持ち点を入力。1人分を空欄にすると残りから自動計算します。2人分を入力すると残りの1人分が自動で入ります（グレーの数値）。書き換えれば手入力になります。同点の場合は、該当する順位のウマ・オカを同点の人で山分けします（例：1位が2人同点なら、1位と2位の分を半分ずつ）。</div>
 </section>
 
 <section class="chips">
@@ -127,24 +138,67 @@ input.autoval{color:var(--sub)}
 </section>
 
 <section>
-  <h2>収支</h2>
+  <h2>成績</h2>
   <div class="wrap">
   <table class="sum" id="sum"></table>
   </div>
+</section>
+
+<section>
+  <h2>場代</h2>
+  <div class="row r2">
+    <div><label for="venue">総額（G・3人で均等割り）</label><input id="venue" type="text" inputmode="numeric" autocomplete="off"></div>
+    <div><label for="venuePayer">支払った人</label><select id="venuePayer"></select></div>
+  </div>
+</section>
+
+<section>
+  <div class="head"><h2>飲み代等</h2><button type="button" class="help" data-help="extras" aria-label="飲み代等のヘルプ">?</button></div>
+  <div id="extraRows"></div>
+  <div class="bar" style="margin-top:0"><button type="button" id="addExtra" data-xadd>＋ 枠を追加</button></div>
+</section>
+
+<section>
+  <div class="head"><h2>精算（場代・飲み代等込み）</h2><button type="button" class="help" data-help="settle" aria-label="精算（場代・飲み代等込み）のヘルプ">?</button></div>
+  <div class="row r2">
+    <div><label for="roundUnit">端数の丸め単位</label><select id="roundUnit"><option value="1">1G</option><option value="10">10G</option><option value="100">100G</option></select></div>
+  </div>
+  <div class="wrap" style="margin-top:12px">
+  <table class="sum" id="settleTbl"></table>
+  </div>
+  <div class="group" style="margin-top:16px">
+    <span>誰が誰に払うか</span>
+    <div id="transfers"></div>
+  </div>
   <div class="bar">
-    <button id="copyTxt">テキストをコピー</button>
+    <button id="copyAll">すべてのテキストをコピー</button>
+    <button id="copyRec">半荘の記録をコピー</button>
+    <button id="copySettle">精算をコピー</button>
     <button id="saveCsv">CSVを保存</button>
   </div>
 </section>
+
 </main>
+
+<dialog id="helpDlg">
+  <div class="dlg-in">
+    <div class="dlg-head"><h3 id="helpTitle"></h3><button type="button" id="helpClose" aria-label="閉じる">閉じる</button></div>
+    <div id="helpBody"></div>
+  </div>
+</dialog>
 
 <script>
 const $=s=>document.querySelector(s);
 const KEY='sanma-score-v1';
-const DEF={settingsOpen:true,settle:'game',okaOn:true,start:35000,back:40000,u:[10,0,-10],rate:50,chip:100,names:['A','B','C'],games:[['','','']],auto:[-1],chips:['','','']};
+const DEF={venue:'',venuePayer:0,roundUnit:100,settingsOpen:true,settle:'game',okaOn:true,start:35000,back:40000,u:[10,0,-10],rate:50,chip:100,names:['A','B','C'],games:[['','','']],auto:[-1],chips:['','','']};
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 S=Object.assign({},DEF,S||{});
+if(!Array.isArray(S.extras)||!S.extras.length){
+  const pd=Number(S.drinkPayer);
+  S.extras=[{amt:S.drinkTotal||'',payer:Number.isFinite(pd)&&S.drinkPayer!==undefined?pd:0}];
+}
+delete S.drinkTotal;delete S.drinkPayer;
 if(!Array.isArray(S.auto)||S.auto.length!==S.games.length)S.auto=S.games.map(()=>-1);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const num=v=>v===''||v==null||isNaN(Number(v))?null:Number(v);
@@ -158,8 +212,23 @@ function readSettings(){
   S.start=num($('#start').value)??0;S.back=num($('#back').value)??0;
   S.u=[num($('#u1').value)??0,num($('#u2').value)??0,num($('#u3').value)??0];
   S.rate=num($('#rate').value)??0;S.chip=num($('#chip').value)??0;
+  S.venue=$('#venue').value;S.venuePayer=Number($('#venuePayer').value);
+  S.roundUnit=Number($('#roundUnit').value)||1;
+}
+const esc=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function fillPayers(){
+  const opts=S.names.map((n,i)=>`<option value="${i}">${esc(n||'P'+(i+1))}</option>`).join('')+'<option value="-1">各自で支払う（精算に含めない）</option>';
+  const set=(el,v)=>{el.innerHTML=opts;el.value=String(v)};
+  set($('#venuePayer'),S.venuePayer);
+  document.querySelectorAll('[data-xp]').forEach(el=>set(el,S.extras[+el.dataset.xp].payer));
+}
+function buildExtras(){
+  $('#extraRows').innerHTML=S.extras.map((x,i)=>`<div class="xrow"><div><label>総額（G）</label><input type="text" inputmode="numeric" autocomplete="off" data-xa="${i}" value="${x.amt}" aria-label="${i+1}つ目の総額"></div><div><label>支払った人</label><select data-xp="${i}" aria-label="${i+1}つ目の支払った人"></select></div><button type="button" class="del" data-xdel="${i}" aria-label="この枠を削除">×</button></div>`).join('');
+  fillPayers();
 }
 function writeSettings(){
+  fillPayers();
+  $('#venue').value=S.venue;$('#roundUnit').value=String(S.roundUnit);
   $('#settle').value=S.settle;$('#okaOn').value=S.okaOn?'1':'0';$('#start').value=S.start;$('#back').value=S.back;
   $('#u1').value=S.u[0];$('#u2').value=S.u[1];$('#u3').value=S.u[2];
   $('#rate').value=S.rate;$('#chip').value=S.chip;
@@ -235,16 +304,31 @@ function report(){
   return{games,rows};
 }
 const ymd=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')};
-function buildText(){
+const dstr=()=>new Date().toLocaleDateString('ja-JP');
+function textRecords(){
   const {games,rows}=report();const n=rows.map(r=>r.n);
-  const L=[`三麻スコア ${new Date().toLocaleDateString('ja-JP')}`];
+  const L=[`三麻スコア ${dstr()}`];
   L.push(`ルール：配給${S.start.toLocaleString('ja-JP')}点 `+(S.okaOn?`返し${S.back.toLocaleString('ja-JP')}点 オカ${sg(oka(),1)}`:'オカなし')+` ウマ${S.u.map(x=>sg(x)).join('/')}　点数${S.rate}${U()}/千点 チップ${S.chip}${U()}/枚　精算：`+(S.settle==='total'?'総合精算':'半荘ごと')+'　同点：ウマオカ山分け');
   L.push('');
   games.forEach((c,gi)=>{if(c)L.push(`${gi+1}半荘目：`+[0,1,2].map(i=>`${n[i]} ${c.v[i].toLocaleString('ja-JP')}点(${sg(c.pts[i],1)})`).join('　'))});
-  L.push('');L.push('【収支】');
+  L.push('');L.push('【成績】');
   rows.forEach(r=>L.push(`${r.n}：`+(S.settle==='total'?`素点${sg(r.raw,1)} ウマオカ${sg(r.adj,1)} → `:'')+`${sg(r.pt,1)}pt ${sg(r.py)}${U()} ／ チップ${sg(r.ch)}枚 ${sg(r.cy)}${U()} ／ 合計 ${sg(r.all)}${U()}`));
   return L.join('\n');
 }
+function textSettle(){
+  const st=settle(),pn=i=>st.rows[i].n;
+  const L=[`三麻精算 ${dstr()}`];
+  const items=[];
+  const v=num(S.venue)??0;
+  if(v>0)items.push(`場代 ${v.toLocaleString('ja-JP')}${U()}（`+(S.venuePayer>=0?`${pn(S.venuePayer)}が立替`:'各自で支払い')+'）');
+  S.extras.forEach((x,k)=>{const a=num(x.amt)??0;if(a>0)items.push(`飲み代等${S.extras.length>1?k+1:''} ${a.toLocaleString('ja-JP')}${U()}（`+(x.payer>=0?`${pn(x.payer)}が立替`:'各自で支払い')+'）')});
+  if(items.length)L.push(items.join('　'));
+  L.push('');L.push('【精算】');
+  st.rows.forEach(r=>L.push(`${r.n}：勝敗${sg(r.net)} 場代${sg(-r.vc)} 飲み代等${sg(-r.dc)} 立替${sg(r.paid)} → 精算合計${sg(r.f)}${U()}`));
+  if(st.tr.length){L.push('');L.push('【支払い】');st.tr.forEach(t=>L.push(`${pn(t.from)} → ${pn(t.to)}：${t.amt.toLocaleString('ja-JP')}${U()}`))}
+  return L.join('\n');
+}
+const buildText=()=>textRecords()+'\n\n'+textSettle();
 const q=v=>{v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 function buildCsv(){
   const {games,rows}=report();const n=rows.map(r=>r.n);
@@ -254,6 +338,11 @@ function buildCsv(){
   const tm=S.settle==='total';
   o.push(['名前',...(tm?['素点','ウマオカ']:[]),'合計pt','点数('+U()+')','チップ(枚)','チップ('+U()+')','合計('+U()+')']);
   rows.forEach(r=>o.push([r.n,...(tm?[r.raw,r.adj]:[]),r.pt,r.py,r.ch,r.cy,r.all]));
+  o.push([]);
+  const st=settle();
+  o.push(['名前','勝敗('+U()+')','場代','飲み代等','立替','精算合計('+U()+')']);
+  st.rows.forEach(r=>o.push([r.n,r.net,-r.vc,-r.dc,r.paid,r.f]));
+  st.tr.forEach(t=>o.push(['支払い',st.rows[t.from].n,'→',st.rows[t.to].n,t.amt]));
   o.push([]);
   o.push(['設定','精算方式',tm?'総合精算':'半荘ごと','同点','ウマオカ山分け','配給原点',S.start,'返し点',back(),'オカ',oka(),'ウマ',S.u.join('/'),'点数レート('+U()+'/千点)',S.rate,'チップ('+U()+'/枚)',S.chip]);
   return '\ufeff'+o.map(r=>r.map(q).join(',')).join('\r\n');
@@ -268,6 +357,34 @@ async function copyText(t){
   }
 }
 
+function settle(){
+  const R=report().rows,u=S.roundUnit||1;
+  const amt=v=>Math.max(0,num(v)??0);
+  const venue=amt(S.venue);
+  const split=(total,k)=>{
+    const sh=[0,1,2].map(()=>Math.round(total/3/u)*u);
+    sh[k]=total-sh.reduce((a,b,i)=>i===k?a:a+b,0);
+    return sh;
+  };
+  const vc=[0,0,0],dc=[0,0,0],paid=[0,0,0];
+  if(S.venuePayer>=0){split(venue,S.venuePayer).forEach((x,i)=>vc[i]=x);paid[S.venuePayer]+=venue}
+  S.extras.forEach(x=>{const a=amt(x.amt);if(x.payer>=0&&a>0){split(a,x.payer).forEach((v,i)=>dc[i]+=v);paid[x.payer]+=a}});
+  const rows=R.map((r,i)=>({n:r.n,net:r.all,vc:vc[i],dc:dc[i],paid:paid[i],f:r.all-vc[i]-dc[i]+paid[i]}));
+  const diff=rows.reduce((a,r)=>a+r.f,0);
+  const d=[],c=[];
+  rows.forEach((r,i)=>{if(r.f<0)d.push({i,a:-r.f});else if(r.f>0)c.push({i,a:r.f})});
+  d.sort((a,b)=>b.a-a.a);c.sort((a,b)=>b.a-a.a);
+  const tr=[];let x=0,y=0;
+  while(x<d.length&&y<c.length){
+    const t=Math.min(d[x].a,c[y].a);
+    tr.push({from:d[x].i,to:c[y].i,amt:t});
+    d[x].a-=t;c[y].a-=t;
+    if(d[x].a===0)x++;
+    if(c[y].a===0)y++;
+  }
+  return{rows,tr,diff};
+}
+
 function buildGames(){
   const t=$('#games');
   let h='<tr><th></th>'+S.names.map((n,i)=>`<th><input class="name" data-name="${i}" value="${n.replace(/"/g,'&quot;')}" aria-label="プレイヤー${i+1}の名前"></th>`).join('')+'<th></th></tr>';
@@ -278,15 +395,26 @@ function buildGames(){
   $('#chipInputs').innerHTML=[0,1,2].map(i=>`<div><label data-cl="${i}"></label><div class="inp" data-cell><input type="text" inputmode="numeric" autocomplete="off" data-chip="${i}" value="${S.chips[i]}"><button type="button" class="sign" data-sign aria-label="プラスマイナスを切り替え">±</button></div></div>`).join('');
 }
 
-function update(){
-  readSettings();
-  $('#rateSpan').textContent=`レート（${U()}）`;
-  $('#digest').textContent=(S.settle==='total'?'総合精算':'半荘ごと')+'・'+(S.okaOn?`オカ${sg(oka(),1)}`:'オカなし')+`・ウマ${S.u.map(x=>sg(x)).join('/')}・${S.rate}${U()}/千点・チップ${S.chip}${U()}`;
-  $('#okaNote').textContent=(S.settle==='total'
+function ruleText(){
+  return (S.settle==='total'
     ?`総合精算：各半荘は素点＝(持ち点−配給原点)÷1000で記録し、全体の素点合計の順位で最後に1回だけウマ`+(S.okaOn?`・オカ（${oka()}を1位に加算、全員が${rd(oka()/3)}ずつ負担）`:'')+`を加減します。`
     :S.okaOn
     ?`オカあり：${oka()}（(返し−配給)×3÷1000）を1位に加算。\n順位点＝(持ち点−返し点)÷1000＋ウマ＋オカ`
     :`オカなし：返し点＝配給原点として計算します。\n順位点＝(持ち点−配給原点)÷1000＋ウマ`)+'\n同点の場合は、該当する順位のウマ・オカを同点者で山分けします。';
+}
+const HELP={
+  rules:{t:'ルール・レート',b:()=>ruleText()},
+  records:{t:'半荘の記録',b:'最終持ち点を入力します。\n2人分を入力すると、残りの1人分が自動で入ります（グレーの数値）。書き換えれば手入力になります。\n同点の場合は、該当する順位のウマ・オカを同点の人で山分けします（例：1位が2人同点なら、1位と2位の分を半分ずつ）。'},
+  extras:{t:'飲み代等',b:'各枠の総額を、3人で均等割りにします。\n飲み代のほか、二次会や駐車場代などにも使えます。\n「各自で支払う」を選んだ枠は、精算に含めません。'},
+  settle:{t:'精算（場代・飲み代等込み）',b:'割り切れない分は、支払った人の負担で調整します。\n「各自で支払う」を選んだ項目は、精算に含めません。\n精算合計＝勝敗＋立替−場代−飲み代等 です。'}
+};
+const helpDlg=()=>$('#helpDlg');
+const helpClose=()=>{const d=helpDlg();d.close?d.close():d.removeAttribute('open')};
+
+function update(){
+  readSettings();
+  $('#rateSpan').textContent=`レート（${U()}）`;
+  $('#digest').textContent=(S.settle==='total'?'総合精算':'半荘ごと')+'・'+(S.okaOn?`オカ${sg(oka(),1)}`:'オカなし')+`・ウマ${S.u.map(x=>sg(x)).join('/')}・${S.rate}${U()}/千点・チップ${S.chip}${U()}`;
   const tot=[0,0,0];
   S.games.forEach((g,gi)=>{
     const c=calc(g);
@@ -315,14 +443,22 @@ function update(){
     h+=`<tr><td><b>${r.n.replace(/</g,'&lt;')}</b></td>`+(tm?`<td class="${cls(r.raw)}">${sg(r.raw,1)}</td><td class="${cls(r.adj)}">${sg(r.adj,1)}</td>`:'')+`<td class="${cls(r.pt)}">${sg(r.pt,1)}</td><td class="${cls(r.py)}">${sg(r.py)}</td><td class="${cls(r.ch)}">${sg(r.ch)}</td><td class="${cls(r.cy)}">${sg(r.cy)}</td><td class="total ${cls(r.all)}">${sg(r.all)}${U()}</td></tr>`;
   });
   $('#sum').innerHTML=h+(w.length?`<tr><td colspan="${tm?8:6}" class="warn" style="text-align:left">${w.join('<br>')}</td></tr>`:'');
+  // 場代・飲み代・精算
+  fillPayers();
+  const st=settle();
+  let sh='<tr><th></th><th>勝敗</th><th>場代</th><th>飲み代等</th><th>立替</th><th>精算合計</th></tr>';
+  st.rows.forEach(r=>{sh+=`<tr><td><b>${esc(r.n)}</b></td><td class="${cls(r.net)}">${sg(r.net)}</td><td class="${cls(-r.vc)}">${sg(-r.vc)}</td><td class="${cls(-r.dc)}">${sg(-r.dc)}</td><td class="${cls(r.paid)}">${sg(r.paid)}</td><td class="total ${cls(r.f)}">${sg(r.f)}${U()}</td></tr>`});
+  $('#settleTbl').innerHTML=sh;
+  $('#transfers').innerHTML=(st.tr.length?st.tr.map(t=>`<div class="xfer"><div><b>${esc(st.rows[t.from].n)}</b> → <b>${esc(st.rows[t.to].n)}</b></div><span>${t.amt.toLocaleString('ja-JP')}${U()}</span></div>`).join(''):'<div class="note" style="color:var(--sub)">支払いはありません</div>')+(st.diff!==0?`<div class="warn">合計が0になっていません（差額${sg(st.diff)}${U()}）。持ち点やチップの入力を確認してください。</div>`:'');
   save();
 }
 
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.g!==undefined||t.dataset.chip!==undefined||['u1','u2','u3'].includes(t.id)){
+  if(t.dataset.g!==undefined||t.dataset.chip!==undefined||['u1','u2','u3','venue'].includes(t.id)||t.dataset.xa!==undefined){
     const c=t.value.replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/[−－ー‐]/g,'-').replace(/[^\d-]/g,'').replace(/(?!^)-/g,'');
-    if(c!==t.value)t.value=c;
+    const c2=(t.id==='venue'||t.dataset.xa!==undefined)?c.replace(/-/g,''):c;
+    if(c2!==t.value)t.value=c2;
   }
   if(t.dataset.g!==undefined){
     const gi=+t.dataset.g,p=+t.dataset.p;
@@ -332,10 +468,22 @@ document.addEventListener('input',e=>{
   }
   else if(t.dataset.name!==undefined)S.names[t.dataset.name]=t.value;
   else if(t.dataset.chip!==undefined)S.chips[t.dataset.chip]=t.value;
+  else if(t.dataset.xa!==undefined)S.extras[+t.dataset.xa].amt=t.value;
+  else if(t.dataset.xp!==undefined)S.extras[+t.dataset.xp].payer=Number(t.value);
   else if(t.id){readSettings();S.games.forEach((_,gi)=>fixAuto(gi))}
   update();
 });
 document.addEventListener('click',e=>{
+  const hb=e.target.closest('[data-help]');
+  if(hb){
+    e.preventDefault();
+    const h=HELP[hb.dataset.help],d=helpDlg();
+    $('#helpTitle').textContent=h.t;
+    $('#helpBody').textContent=typeof h.b==='function'?h.b():h.b;
+    d.showModal?d.showModal():d.setAttribute('open','');
+    return;
+  }
+  if(e.target.id==='helpClose'||e.target===helpDlg()){helpClose();return}
   const sb=e.target.closest('[data-sign]');
   if(sb){
     const inp=sb.closest('[data-cell]').querySelector('input');
@@ -343,6 +491,13 @@ document.addEventListener('click',e=>{
     inp.dispatchEvent(new Event('input',{bubbles:true}));
     inp.focus();
     return;
+  }
+  if(e.target.closest('[data-xadd]')){S.extras.push({amt:'',payer:0});buildExtras();update();return}
+  const xd=e.target.closest('[data-xdel]');
+  if(xd){
+    const k=+xd.dataset.xdel;
+    if(S.extras.length>1)S.extras.splice(k,1);else S.extras[0]={amt:'',payer:0};
+    buildExtras();update();return;
   }
   const t=e.target;
   if(t.dataset.del!==undefined){
@@ -353,11 +508,12 @@ document.addEventListener('click',e=>{
 });
 $('#add').onclick=()=>{S.games.push(['','','']);S.auto.push(-1);buildGames();update();
   const ins=document.querySelectorAll('#games input[data-g="'+(S.games.length-1)+'"]');if(ins[0])ins[0].focus()};
-$('#clear').onclick=()=>{if(confirm('半荘とチップの記録をすべて消去します。よろしいですか？（設定とプレイヤー名は残ります）')){S.games=[['','','']];S.auto=[-1];S.chips=['','',''];buildGames();update()}};
-$('#copyTxt').onclick=async e=>{const b=e.currentTarget,old=b.textContent;const ok=await copyText(buildText());b.textContent=ok?'コピーしました':'コピーできませんでした';setTimeout(()=>b.textContent=old,1600)};
+$('#clear').onclick=()=>{if(confirm('半荘とチップの記録をすべて消去します。よろしいですか？（設定とプレイヤー名は残ります）')){S.games=[['','','']];S.auto=[-1];S.chips=['','',''];S.venue='';S.extras=[{amt:'',payer:0}];writeSettings();buildGames();buildExtras();update()}};
+const copyBtn=(id,fn)=>{$('#'+id).onclick=async e=>{const b=e.currentTarget,old=b.textContent;const ok=await copyText(fn());b.textContent=ok?'コピーしました':'コピーできませんでした';setTimeout(()=>b.textContent=old,1600)}};
+copyBtn('copyAll',buildText);copyBtn('copyRec',textRecords);copyBtn('copySettle',textSettle);
 $('#saveCsv').onclick=()=>{const a=document.createElement('a');const url=URL.createObjectURL(new Blob([buildCsv()],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='sanma-'+ymd()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)};
 
-writeSettings();buildGames();update();
+writeSettings();buildGames();buildExtras();update();
 $('#settingsBox').open=S.settingsOpen!==false;
 $('#settingsBox').addEventListener('toggle',()=>{S.settingsOpen=$('#settingsBox').open;save()});
 </script>
